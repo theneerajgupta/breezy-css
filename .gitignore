@@ -38,3 +38,6 @@ dist/
 
 # Test Env
 test-app/
+
+# Breezy CSS auto-generated files
+.breezy/
