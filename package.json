@@ -58,6 +58,7 @@
     "unplugin": "^2.3.10"
   },
   "devDependencies": {
+    "@types/node": "^24.9.2",
     "@types/react": "^19.2.2",
     "tsup": "^8.5.0",
     "typescript": "^5.9.3"
