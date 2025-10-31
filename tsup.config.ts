@@ -8,9 +8,11 @@ export default defineConfig({
     'src/rollup.ts',
     'src/esbuild.ts',
     'src/auto.ts',
+    'src/runtime.ts',
   ],
   format: ['esm', 'cjs'],
   dts: true,
   clean: true,
   sourcemap: true,
+  external: ['react'],
 });
