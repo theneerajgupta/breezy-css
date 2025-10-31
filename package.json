@@ -4,43 +4,43 @@
   "description": "Responsive TailwindCSS Props for React",
   "type": "module",
   "license": "MIT",
-  "main": "./dist/index.js",
-  "module": "./dist/index.mjs",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "sideEffects": [
     "./dist/auto.js",
-    "./dist/auto.mjs"
+    "./dist/auto.cjs"
   ],
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.mjs",
-      "require": "./dist/index.js"
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
     },
     "./vite": {
       "types": "./dist/vite.d.ts",
-      "import": "./dist/vite.mjs",
-      "require": "./dist/vite.js"
+      "import": "./dist/vite.js",
+      "require": "./dist/vite.cjs"
     },
     "./webpack": {
       "types": "./dist/webpack.d.ts",
-      "import": "./dist/webpack.mjs",
-      "require": "./dist/webpack.js"
+      "import": "./dist/webpack.js",
+      "require": "./dist/webpack.cjs"
     },
     "./rollup": {
       "types": "./dist/rollup.d.ts",
-      "import": "./dist/rollup.mjs",
-      "require": "./dist/rollup.js"
+      "import": "./dist/rollup.js",
+      "require": "./dist/rollup.cjs"
     },
     "./esbuild": {
       "types": "./dist/esbuild.d.ts",
-      "import": "./dist/esbuild.mjs",
-      "require": "./dist/esbuild.js"
+      "import": "./dist/esbuild.js",
+      "require": "./dist/esbuild.cjs"
     },
     "./auto": {
       "types": "./dist/auto.d.ts",
-      "import": "./dist/auto.mjs",
-      "require": "./dist/auto.js"
+      "import": "./dist/auto.js",
+      "require": "./dist/auto.cjs"
     }
   },
   "files": [
@@ -58,7 +58,7 @@
     "unplugin": "^2.3.10"
   },
   "devDependencies": {
-    "@types/node": "^24.9.2",
+    "@types/node": "^22.10.1",
     "@types/react": "^19.2.2",
     "tsup": "^8.5.0",
     "typescript": "^5.9.3"

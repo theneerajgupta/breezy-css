@@ -32,3 +32,6 @@ npm-debug.log*
 # Temp
 .tmp/
 .cache/
+
+# Build output
+dist/
