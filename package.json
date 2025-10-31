@@ -1,0 +1,7 @@
+{
+	"name": "breezy-css",
+	"version": "0.1.0",
+	"description": "Responsive TailwindCSS Props for React",
+	"type": "module",
+	"license": "MIT"
+}
