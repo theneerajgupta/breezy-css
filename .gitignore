@@ -35,3 +35,6 @@ npm-debug.log*
 
 # Build output
 dist/
+
+# Test Env
+test-app/

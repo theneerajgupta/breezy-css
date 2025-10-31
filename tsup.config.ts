@@ -14,5 +14,12 @@ export default defineConfig({
   dts: true,
   clean: true,
   sourcemap: true,
-  external: ['react'],
+  external: [
+    'react',
+    '@babel/parser',
+    '@babel/traverse',
+    '@babel/generator',
+    '@babel/types',
+    '@babel/core',
+  ],
 });

@@ -1,105 +1,167 @@
 import { createUnplugin } from 'unplugin';
-import { transform, hasResponsiveProps } from './core';
+import { parse } from '@babel/parser';
+import traverseDefault from '@babel/traverse';
+import generateDefault from '@babel/generator';
+import * as t from '@babel/types';
+
+// Handle both ESM and CJS exports
+const traverse = traverseDefault.default || traverseDefault;
+const generate = generateDefault.default || generateDefault;
 
 /**
- * Breezy CSS unplugin - transforms responsive props at build time
+ * Breezy CSS unplugin - transforms responsive props at build time using AST
  * 
- * This plugin intercepts JSX/TSX files during bundling and transforms
- * responsive props (sm, md, lg, xl, xxl) into prefixed className strings.
- * 
- * @example
- * // User writes:
- * <div className="flex" md="flex-col" />
- * 
- * // Plugin transforms to:
- * <div className="flex md:flex-col" />
+ * This plugin uses Babel to parse JSX/TSX and transform responsive props
+ * (sm, md, lg, xl, xxl) into prefixed className strings.
  */
 export default createUnplugin(() => ({
   name: 'breezy-css',
-  
-  // Run before other plugins to ensure clean JSX transformation
   enforce: 'pre',
-  
-  /**
-   * Transform function - processes each file during build
-   */
+
   transform(code: string, id: string) {
     // Only process JSX/TSX files
     if (!/\.[jt]sx$/.test(id)) {
       return null;
     }
-    
-    // Early bailout: skip files without responsive props
-    if (!hasResponsiveProps(code)) {
+
+    // Quick check - does file contain responsive props?
+    if (!/\s(sm|md|lg|xl|xxl)=/.test(code)) {
       return null;
     }
-    
-    // Transform responsive props in JSX
-    return transformJSX(code);
+
+    try {
+      return transformWithAST(code, id);
+    } catch (error) {
+      console.error(`[breezy-css] Transform error in ${id}:`, error);
+      return null;
+    }
   },
 }));
 
 /**
- * Transform JSX code by converting responsive props to className
- * 
- * Finds patterns like: md="flex-col gap-4"
- * Converts to: className="...md:flex-col md:gap-4"
+ * Transform JSX using Babel AST
  */
-function transformJSX(code: string): string {
-  // Regex to match responsive props: sm="..." md="..." etc.
-  const RESPONSIVE_PROP_PATTERN = /(sm|md|lg|xl|xxl)=(?:"([^"]*)"|'([^']*)'|{([^}]*)})/g;
-  
-  // Track all responsive props found
-  const responsiveProps: Record<string, string> = {};
-  
-  // Extract all responsive props from the code
-  let match;
-  while ((match = RESPONSIVE_PROP_PATTERN.exec(code)) !== null) {
-    const [fullMatch, breakpoint, doubleQuoted, singleQuoted, braced] = match;
-    const value = doubleQuoted || singleQuoted || braced;
-    
-    if (value) {
-      responsiveProps[breakpoint] = value;
+function transformWithAST(code: string, filename: string): { code: string; map?: any } | null {
+  const ast = parse(code, {
+    sourceType: 'module',
+    plugins: ['jsx', 'typescript'],
+    sourceFilename: filename,
+  });
+
+  let hasTransformations = false;
+
+  traverse(ast, {
+    JSXOpeningElement(path) {
+      const attributes = path.node.attributes;
+      const responsiveProps: Record<string, string> = {};
+      let classNameAttr: t.JSXAttribute | null = null;
+      const otherAttributes: (t.JSXAttribute | t.JSXSpreadAttribute)[] = [];
+
+      for (const attr of attributes) {
+        if (t.isJSXAttribute(attr) && t.isJSXIdentifier(attr.name)) {
+          const attrName = attr.name.name;
+
+          if (['sm', 'md', 'lg', 'xl', 'xxl'].includes(attrName)) {
+            const value = getAttributeValue(attr);
+            if (value) {
+              responsiveProps[attrName] = value;
+              hasTransformations = true;
+            }
+          } else if (attrName === 'className') {
+            classNameAttr = attr;
+          } else {
+            otherAttributes.push(attr);
+          }
+        } else {
+          otherAttributes.push(attr);
+        }
+      }
+
+      if (Object.keys(responsiveProps).length > 0) {
+        const transformedClassName = buildClassName(
+          classNameAttr ? getAttributeValue(classNameAttr) : '',
+          responsiveProps
+        );
+
+        const newClassNameAttr = t.jsxAttribute(
+          t.jsxIdentifier('className'),
+          t.stringLiteral(transformedClassName)
+        );
+
+        path.node.attributes = [...otherAttributes, newClassNameAttr];
+      }
+    },
+  });
+
+  if (!hasTransformations) {
+    return null;
+  }
+
+  const result = generate(ast, {
+    retainLines: true,
+    sourceMaps: true,
+    sourceFileName: filename,
+  }, code);
+
+  return {
+    code: result.code,
+    map: result.map,
+  };
+}
+
+/**
+ * Extract string value from JSX attribute
+ */
+function getAttributeValue(attr: t.JSXAttribute): string | null {
+  if (!attr.value) return null;
+
+  if (t.isStringLiteral(attr.value)) {
+    return attr.value.value;
+  }
+
+  if (t.isJSXExpressionContainer(attr.value)) {
+    const expr = attr.value.expression;
+    if (t.isStringLiteral(expr)) {
+      return expr.value;
+    }
+    if (t.isTemplateLiteral(expr) && expr.quasis.length === 1) {
+      return expr.quasis[0].value.raw;
     }
   }
-  
-  // If no responsive props found, return unchanged
-  if (Object.keys(responsiveProps).length === 0) {
-    return code;
+
+  return null;
+}
+
+/**
+ * Build final className from base + responsive props
+ */
+function buildClassName(baseClassName: string, responsiveProps: Record<string, string>): string {
+  const classes: string[] = [];
+
+  if (baseClassName) {
+    classes.push(baseClassName);
   }
-  
-  // Transform the responsive props into prefixed classes
-  const transformedClasses = transform(responsiveProps);
-  
-  // Remove responsive props from code and merge into className
-  let result = code;
-  
-  // Remove each responsive prop
-  result = result.replace(RESPONSIVE_PROP_PATTERN, '');
-  
-  // Add transformed classes to className
-  // TODO: This is a simplified approach - needs refinement for:
-  // - Multiple elements in one file
-  // - Existing className merging
-  // - Preserving other props
-  
-  if (result.includes('className=')) {
-    // Merge with existing className
-    result = result.replace(
-      /className=(?:"([^"]*)"|'([^']*)')/,
-      (match, doubleQuoted, singleQuoted) => {
-        const existing = doubleQuoted || singleQuoted;
-        return `className="${existing} ${transformedClasses}"`;
-      }
-    );
-  } else {
-    // Add new className prop
-    // This is simplified - proper implementation needs AST parsing
-    result = result.replace(
-      /(<\w+)(\s)/,
-      `$1 className="${transformedClasses}"$2`
-    );
+
+  const breakpointMap: Record<string, string> = {
+    sm: 'sm:',
+    md: 'md:',
+    lg: 'lg:',
+    xl: 'xl:',
+    xxl: '2xl:',
+  };
+
+  for (const [breakpoint, classString] of Object.entries(responsiveProps)) {
+    const prefix = breakpointMap[breakpoint];
+    const prefixedClasses = classString
+      .split(' ')
+      .filter(Boolean)
+      .map(cls => `${prefix}${cls}`)
+      .join(' ');
+
+    if (prefixedClasses) {
+      classes.push(prefixedClasses);
+    }
   }
-  
-  return result;
+
+  return classes.join(' ');
 }
